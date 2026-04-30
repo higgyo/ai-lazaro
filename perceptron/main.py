@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from perceptron import Perceptron
-from plotter import plot_training_interactive
+from plotter import plot_training_interactive, plot_errors_interactive
 
 def main():
     # 1. Carregar Dados
@@ -48,6 +48,7 @@ def main():
         # 4. Plotar gráfico iterativo
         print(f"Gerando gráfico para o treinamento {i} (Épocas: {epochs})...")
         plot_training_interactive(X_train, d_train, p.weights_history, i)
+        plot_errors_interactive(p.errors_history, i)
 
     # 5. Formatar e exibir Tabela de Treinamentos
     print("\n" + "="*80)

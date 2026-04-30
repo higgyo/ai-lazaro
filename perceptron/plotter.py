@@ -127,3 +127,31 @@ def plot_training_interactive(X, d, weights_history, training_index):
     file_name = f'grafico_treinamento_{training_index}.html'
     fig.write_html(file_name)
     print(f"Gráfico interativo salvo em: {file_name}")
+
+def plot_errors_interactive(errors_history, training_index):
+    """
+    Gera um arquivo HTML com o gráfico 2D iterativo do número de erros por época
+    usando Plotly.
+    """
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=list(range(1, len(errors_history) + 1)),
+        y=errors_history,
+        mode='lines+markers',
+        name='Erros',
+        line=dict(color='orange', width=2),
+        marker=dict(size=4)
+    ))
+    
+    fig.update_layout(
+        title=f"Evolução do Número de Erros - Treinamento {training_index}",
+        xaxis_title="Épocas",
+        yaxis_title="Número de Erros (Amostras Classificadas Incorretamente)",
+        template="plotly_white"
+    )
+    
+    file_name = f'grafico_erros_treinamento_{training_index}.html'
+    fig.write_html(file_name)
+    print(f"Gráfico de erros salvo em: {file_name}")
+

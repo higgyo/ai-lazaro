@@ -10,6 +10,7 @@ class Perceptron:
         
         # Keep track of weight history for plotting
         self.weights_history = []
+        self.errors_history = []
         
     def predict(self, x):
         # x is an array [x1, x2, x3]
@@ -33,6 +34,7 @@ class Perceptron:
         
         while error:
             error = False
+            errors_in_epoch = 0
             for i in range(len(X)):
                 x = X[i]
                 desired_d = d[i]
@@ -42,11 +44,13 @@ class Perceptron:
                 
                 if y != desired_d:
                     error = True
+                    errors_in_epoch += 1
                     # Hebbian rule for supervised learning: w_new = w_old + learning_rate * d * x
                     x_with_bias = np.append(x, -1)
                     self.weights = self.weights + self.learning_rate * desired_d * x_with_bias
                     
             epochs += 1
             self.weights_history.append(self.weights.copy())
+            self.errors_history.append(errors_in_epoch)
             
         return epochs
