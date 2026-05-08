@@ -1,150 +1,123 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
+# Carregar dados de treinamento do CSV (colunas: x1, x2, x3, x4, d)
+treinamento_csv = np.genfromtxt('treinamento.csv', delimiter=',', skip_header=1)
+treinamento_data = treinamento_csv.tolist()
 
-class Adaline:
-    """
-    Rede ADALINE (Adaptive Linear Neuron) com treinamento pela Regra Delta (LMS).
+# Carregar dados de teste do CSV (colunas: x1, x2, x3, x4)
+teste_csv = np.genfromtxt('teste.csv', delimiter=',', skip_header=1)
+teste_data = teste_csv.tolist()
 
-    Estrutura:
-        - 4 entradas: x1, x2, x3, x4
-        - 1 bias (x0 = +1, peso w0)
-        - Total de 5 pesos: [w0, w1, w2, w3, w4]
-        - Saída linear durante treinamento, sign() na inferência
+# Parâmetros
+eta = 0.0025
+precisao = 1e-6
 
-    Referência: Adaline.docx — Lab. Inteligência Artificial, CEFET-MG Campus VIII
-    """
+# Preparar X e d (Treinamento)
+X_train = []
+d_train = []
+for row in treinamento_data:
+    # x0 = -1 (bias)
+    X_train.append([-1.0, row[0], row[1], row[2], row[3]])
+    d_train.append(row[4])
+X_train = np.array(X_train)
+d_train = np.array(d_train)
 
-    def __init__(self, learning_rate: float = 0.0025, precision: float = 1e-6, seed: int = None):
-        """
-        Parâmetros
-        ----------
-        learning_rate : float
-            Taxa de aprendizado η (padrão: 0.0025 conforme especificação)
-        precision : float
-            Precisão ε para critério de parada (padrão: 1e-6)
-        seed : int
-            Semente para o gerador de números aleatórios (garante inicializações distintas)
-        """
-        self.learning_rate = learning_rate
-        self.precision = precision
-        self.seed = seed
+# Preparar X_test
+X_test = []
+for row in teste_data:
+    X_test.append([-1.0, row[0], row[1], row[2], row[3]])
+X_test = np.array(X_test)
 
-        # Inicializar gerador e pesos
-        self._rng = np.random.default_rng(seed)
-        self._init_weights()
+def train_adaline(X, d, eta, precisao, seed):
+    np.random.seed(seed)
+    w = np.random.rand(5)  # Pesos iniciais entre 0 e 1
+    w_initial = w.copy()
+    
+    n_samples = len(X)
+    eqm_anterior = float('inf')
+    eqms = []
+    epoca = 0
+    
+    while True:
+        epoca += 1
+        eqm_atual = 0.0
+        
+        # Opcional: embaralhar em cada época, mas pelo enunciado, podemos manter em ordem.
+        # Regra Delta
+        for i in range(n_samples):
+            u = np.dot(X[i], w)
+            erro = d[i] - u
+            w = w + eta * erro * X[i]
+            
+        # Calcular EQM para a época
+        for i in range(n_samples):
+            u = np.dot(X[i], w)
+            erro = d[i] - u
+            eqm_atual += erro ** 2
+        eqm_atual = eqm_atual / n_samples
+        eqms.append(eqm_atual)
+        
+        if abs(eqm_atual - eqm_anterior) <= precisao:
+            break
+            
+        eqm_anterior = eqm_atual
+        
+        # Limite de segurança para evitar loop infinito
+        if epoca > 50000:
+            break
+            
+    return w_initial, w, epoca, eqms
 
-        # Histórico para análise e plotagem
-        self.eqm_history: list[float] = []          # EQM por época
-        self.initial_weights: np.ndarray = None      # Pesos antes do treino
-        self.epochs_trained: int = 0                 # Épocas até convergência
+def predict(X, w):
+    y_pred = []
+    for i in range(len(X)):
+        u = np.dot(X[i], w)
+        # Classificar como 1 ou -1
+        y = 1 if u >= 0 else -1
+        y_pred.append(y)
+    return y_pred
 
-    # ------------------------------------------------------------------
-    # Inicialização
-    # ------------------------------------------------------------------
+resultados_treinamentos = []
+eqms_graficos = []
 
-    def _init_weights(self) -> None:
-        """Inicializa 5 pesos aleatórios em [0, 1]: [w0_bias, w1, w2, w3, w4]."""
-        self.weights = self._rng.uniform(0.0, 1.0, size=5)
+# Realizar 5 treinamentos
+for i in range(5):
+    w_init, w_final, epocas, eqms = train_adaline(X_train, d_train, eta, precisao, seed=42+i)
+    resultados_treinamentos.append((w_init, w_final, epocas))
+    if i < 2:
+        eqms_graficos.append(eqms)
 
-    # ------------------------------------------------------------------
-    # Operações de inferência
-    # ------------------------------------------------------------------
+# Gerar gráfico para os 2 primeiros
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, len(eqms_graficos[0]) + 1), eqms_graficos[0], label='Treinamento 1 (T1)')
+plt.plot(range(1, len(eqms_graficos[1]) + 1), eqms_graficos[1], label='Treinamento 2 (T2)')
+plt.title('Erro Quadrático Médio (EQM) vs Épocas')
+plt.xlabel('Épocas')
+plt.ylabel('EQM')
+plt.legend()
+plt.grid(True)
+plt.savefig('grafico_eqm.png')
+plt.close()
 
-    def _augment(self, x: np.ndarray) -> np.ndarray:
-        """Acrescenta o termo de bias (x0 = +1) ao vetor de entrada."""
-        return np.concatenate(([1.0], x))
+# Classificar o conjunto de testes com as 5 redes
+predicoes_teste = []
+for i in range(5):
+    w_final = resultados_treinamentos[i][1]
+    y_pred = predict(X_test, w_final)
+    predicoes_teste.append(y_pred)
+predicoes_teste = np.array(predicoes_teste).T  # Transpor para ter (Amostras, 5 predições)
 
-    def net_input(self, x: np.ndarray) -> float:
-        """Calcula a saída combinada linear: u = w · [1, x1, x2, x3, x4]."""
-        return float(np.dot(self.weights, self._augment(x)))
-
-    def predict(self, x: np.ndarray) -> int:
-        """
-        Classifica uma amostra usando a função sign.
-
-        Retorna
-        -------
-        +1  →  Válvula B
-        -1  →  Válvula A
-        """
-        u = self.net_input(x)
-        return 1 if u >= 0 else -1
-
-    # ------------------------------------------------------------------
-    # Treinamento — Regra Delta (on-line, padrão por padrão)
-    # ------------------------------------------------------------------
-
-    def fit(self, X: np.ndarray, d: np.ndarray) -> int:
-        """
-        Treina o ADALINE usando a Regra Delta (LMS on-line).
-
-        Algoritmo:
-            Para cada época:
-                Para cada padrão p:
-                    u(p) = w · x_aug(p)          (saída linear)
-                    e(p) = d(p) - u(p)            (erro)
-                    Δw   = η · e(p) · x_aug(p)   (regra delta)
-                    w   ← w + Δw
-                EQM = (1 / (2 * P)) * Σ e(p)²    (após todos os padrões)
-            Parar quando |EQM_anterior - EQM_atual| < ε  (variação do EQM)
-
-        Parâmetros
-        ----------
-        X : ndarray, shape (n_samples, 4)
-            Matriz de entradas (x1, x2, x3, x4)
-        d : ndarray, shape (n_samples,)
-            Saídas desejadas (+1 ou -1)
-
-        Retorna
-        -------
-        int : número de épocas até convergência
-        """
-        # Guardar pesos iniciais (antes de qualquer atualização)
-        self.initial_weights = self.weights.copy()
-        self.eqm_history = []
-
-        epoch = 0
-        P = len(X)
-        eqm_prev = float("inf")
-        max_epochs = 100_000   # teto de segurança
-
-        while epoch < max_epochs:
-            epoch += 1
-            errors_sq = []
-
-            for i in range(P):
-                x_aug = self._augment(X[i])
-                u = float(np.dot(self.weights, x_aug))   # saída linear
-                e = float(d[i]) - u                       # erro
-
-                # Atualização on-line (Regra Delta)
-                self.weights = self.weights + self.learning_rate * e * x_aug
-
-                errors_sq.append(e ** 2)
-
-            # EQM da época
-            eqm = sum(errors_sq) / (2 * P)
-            self.eqm_history.append(eqm)
-
-            # Critério de parada: variação do EQM entre épocas < precisão
-            if abs(eqm_prev - eqm) < self.precision:
-                break
-
-            eqm_prev = eqm
-
-        self.epochs_trained = epoch
-        return epoch
-
-    # ------------------------------------------------------------------
-    # Utilidades
-    # ------------------------------------------------------------------
-
-    def classify_label(self, x: np.ndarray) -> str:
-        """Retorna 'A' (Válvula A) ou 'B' (Válvula B)."""
-        return "B" if self.predict(x) == 1 else "A"
-
-    def __repr__(self) -> str:
-        return (
-            f"Adaline(η={self.learning_rate}, ε={self.precision}, "
-            f"seed={self.seed}, épocas={self.epochs_trained})"
-        )
+# Imprimir resultados para criar o MD depois
+print("Tabela 1: Pesos Iniciais, Finais e Épocas")
+for i, res in enumerate(resultados_treinamentos):
+    w_i = [f"{x:.4f}" for x in res[0]]
+    w_f = [f"{x:.4f}" for x in res[1]]
+    print(f"Treinamento {i+1}:")
+    print(f"  Inicial: {w_i}")
+    print(f"  Final:   {w_f}")
+    print(f"  Épocas:  {res[2]}")
+    
+print("\nTabela 2: Predições")
+for i, pred in enumerate(predicoes_teste):
+    print(f"Amostra {i+1}: {list(pred)}")
